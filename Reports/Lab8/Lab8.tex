@@ -1,0 +1,231 @@
+\documentclass[a4paper,12pt]{report}
+
+\usepackage{cmap}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{csquotes}
+\usepackage{mathtools}
+\usepackage{hyphenat}
+\usepackage{amsfonts}
+\usepackage{upgreek}
+
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{
+    language=Python,                 
+    basicstyle=\small\sffamily, 
+    numbers=left,               
+    numberstyle=\tiny,          
+    stepnumber=1,                  
+    numbersep=5pt,                
+    aboveskip=3mm,
+    belowskip=3mm,
+    showstringspaces=false,
+    columns=flexible,
+    captionpos=b, 
+    basicstyle={\small\ttfamily},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    keywordstyle=\color{blue},
+    commentstyle=\color{mauve},
+    stringstyle=\color{dkgreen},
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=3
+}
+
+\title{Лабораторная работа №8\\Фильтрация и свёртка}
+\author{Крынский Павел}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\listoffigures
+\lstlistoflistings
+
+\maketitle
+
+\chapter{Упражнение 8.1}
+
+В данном упражнении нас просят открыть \texttt{chap02.ipynb}, прочитать пояснения и запустить примеры. Поэтому я просто изучил все примеры и комментарии к ним.
+В итоге, на основе полученых результатов можно сделать вывод, что увеличение std приводит к "сплющиванию" гаусовой кривой.
+
+\chapter{Упражнение 8.2}
+
+Во втором пункте нам необходимо оаробывать ДПФ и понять, что происходит при изменении std.
+
+Рассмотрим Гауссовский пример:
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{1.png}
+        \caption{Визуализация Гауса}
+        \label{fig:lab8_fig2_1}
+\end{figure}
+
+Отобразим FFT:
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{2.png}
+        \caption{Визуализация FFT}
+        \label{fig:lab8_fig2_2}
+\end{figure}
+
+Если мы повернём отрицательные частоты влево, то сможем яснее увидеть, что это гауссово, по крайней мере приблизительно.
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{3.png}
+        \caption{Визуализация гауссовского сигнала}
+        \label{fig:lab8_fig2_3}
+\end{figure}
+
+Эта функция отображает окно Гаусса и его FFT друг с другом.
+
+\begin{lstlisting}[caption=Функция \texttt{plot\_gaussian}]
+def plot_gaussian(std):
+    M = 32
+    gaussian = scipy.signal.gaussian(M=M, std=std)
+    gaussian /= sum(gaussian)
+    
+    thinkplot.subplot(1, 2, 1)
+    thinkplot.plot(gaussian)
+    decorate(xlabel='Time')
+
+    fft_gaussian = np.fft.fft(gaussian)
+    fft_rolled = np.roll(fft_gaussian, M//2)
+    
+    thinkplot.subplot(1, 2, 2)
+    thinkplot.plot(np.abs(fft_rolled))
+    decorate(xlabel='Frequency')
+    thinkplot.show()
+plot_gaussian(2)
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{4.png}
+        \caption{Визуализация окна Гаусса и его FFT}
+        \label{fig:lab8_fig2_4}
+\end{figure}
+
+Теперь мы можем сделать манипуляции, которые покажут, что происходит при изменении \texttt{std}.
+
+\begin{lstlisting}[caption=Изменение \texttt{std}]
+slider = widgets.FloatSlider(min=0.1, max=10, value=2)
+interact(plot_gaussian, std=slider);
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{5.png}
+        \caption{Изменение \texttt{std}}
+        \label{fig:lab8_fig2_5}
+\end{figure}
+
+По мере увеличения \texttt{std} Гауссовский становится шире, а его БПФ сужается.
+
+С точки зрения непрерывной математики, если
+
+$f(x) = e^{-a x^2}$
+
+который является гауссовским со средним 0 и стандартным отклонением $1/a$, его преобразование Фурье имеет вид
+
+$F(k) = \sqrt{\frac{\pi}{a}} e^{-\pi^2 k^2/a}$
+
+который является гауссовским со стандартным отклонением $a / \pi^2$. Таким образом, существует обратная зависимость между стандартными отклонениями $f$ и $F$.
+
+\chapter{Упражнение 8.3}
+Тут нам нужно создать окно Хемминга тех размеров,что и Гаусса. Распечатать его ДПФ. Определить какое окно больше для фильтрации НЧ.
+Создадим 1-секундную волну с частотой дискретизации 44 кГц.
+
+\begin{lstlisting}[caption=Создание сигнала]
+signal = thinkdsp.SquareSignal(freq=440)
+wave = signal.make_wave(duration=1.0, framerate=44100)
+\end{lstlisting}
+
+Затем создадим несколько окон. Выберем стандартное отклонение окна Гаусса, чтобы сделать его похожим на другие.
+
+\begin{lstlisting}[caption=Создание различных окон]
+M = 18
+std = 2.5
+
+gaussian = scipy.signal.gaussian(M=M, std=std)   
+bartlett = np.bartlett(M)
+blackman = np.blackman(M)
+hamming = np.hamming(M)
+hanning = np.hanning(M)
+
+windows = [ gaussian, blackman, hamming , hanning]
+names = [ 'gaussian', 'blackman', 'hamming' , 'hanning']
+
+for window in windows:
+    window /= sum(window)
+\end{lstlisting}
+
+Теперь посмотрим, как выглядят эти окна.
+
+\begin{lstlisting}[caption=Визуализация окон]
+for window, name in zip(windows, names):
+    thinkplot.plot(window, label=name)
+decorate(xlabel='Index')
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{6.png}
+        \caption{Визуализация окон}
+        \label{fig:lab8_fig3_1}
+\end{figure}
+
+Они выглядят довольно похоже. Посмотрим, как выглядят их ДПФ:
+
+
+\begin{lstlisting}[caption=Визуализация ДПФ]
+plot_window_dfts(windows, names)
+decorate(xlabel='Frequency (Hz)')
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{7.png}
+        \caption{Визуализация ДПФ}
+        \label{fig:lab8_fig3_2}
+\end{figure}
+
+Стоит отметить, что Гауссово падает быстрее всех, Блэкман - самый медленный.
+
+\begin{lstlisting}[caption=Визуализация ДПФ]
+plot_window_dfts(windows, names)
+decorate(xlabel='Frequency (Hz)', yscale='log')
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{8.png}
+        \caption{Визуализация ДПФ}
+        \label{fig:lab8_fig3_3}
+\end{figure}
+
+В логарифмической шкале мы видим, что сначала значения Хэмминга и Хеннинга падают быстрее, чем два других. И окна Хэмминга и Гаусса, кажется, имеют самые стойкие боковые лепестки. Окно Ханнинга, кажется, имеет наилучшее сочетание быстрого спада и минимальных боковых лепестков.
+
+\chapter{Выводы}
+
+Во время выполнения лабораторной работы получены навыки работы с концепцией свёртки и теоремой свёртки, а также научился применять эти знания на практике.
+
+\end{document}
