@@ -1,0 +1,156 @@
+\documentclass[a4paper,12pt]{report}
+
+\usepackage{cmap}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{csquotes}
+\usepackage{mathtools}
+\usepackage{hyphenat}
+\usepackage{amsfonts}
+\usepackage{upgreek}
+
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{
+    language=Python,                
+    basicstyle=\small\sffamily, 
+    numbers=left,               
+    numberstyle=\tiny,           
+    stepnumber=1,                 
+    numbersep=5pt,            
+    aboveskip=3mm,
+    belowskip=3mm,
+    showstringspaces=false,
+    columns=flexible,
+    captionpos=b, 
+    basicstyle={\small\ttfamily},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    keywordstyle=\color{blue},
+    commentstyle=\color{mauve},
+    stringstyle=\color{dkgreen},
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=3
+}
+
+\title{Лабораторная работа №7\\Дискретное преобразование Фурье}
+\author{Крынский Павел}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\lstlistoflistings
+
+\maketitle
+
+\chapter{Упражнение 7.1}
+
+В данном упражнении нас просят открыть \texttt{chap07.ipynb}, прочитать пояснения и запустить примеры. Поэтому я просто изучил все примеры и комментарии к ним.
+
+
+\chapter{Упражнение 7.2}
+
+В дааном упражнении предлагается иследовать и релизовать бытрое преобразование Фурье. Реализация заключается в делении массива значений некоторого сигнала на подмассивы с четными и не четными элементами, вычислении ДПФ для них.
+
+Возьмём небольшой реальный сигнал и вычислим его БПФ:
+
+\begin{lstlisting}[caption=Вычисление БПФ при помощи \texttt{np.fft.fft}]
+ys = [-0.2, 0.3, 0.5, -0.3]
+hs = np.fft.fft(ys)
+print(hs)
+\end{lstlisting}
+
+Результаты применения к нему быстрого преобразования: [ 0.3+0.j  -0.7-0.6j  0.3+0.j  -0.7+0.6j].
+
+Напишем функцию для БПФ:
+
+\begin{lstlisting}[caption=Функция \texttt{dft}]
+def dft(ys):
+    N = len(ys)
+    ts = np.arange(N) / N
+    freqs = np.arange(N)
+    args = np.outer(ts, freqs)
+    M = np.exp(1j * PI2 * args)
+    amps = M.conj().transpose().dot(ys)
+    return amps
+\end{lstlisting}
+
+Удостоверимся, что эта реализация даёт тот же результат, что и \texttt{np.fft.fft}.
+
+\begin{lstlisting}[caption=Сравнение реализаций]
+hs2 = dft(ys)
+sum(abs(hs - hs2))
+\end{lstlisting}
+
+Все верно и результаты сходятся \texttt{5.552192056508194e-16}.  
+
+Чтобы сделать рекурсивное БПФ, я начну с версии, которая разбивает входной массив и использует \texttt{np.fft.fft} для вычисления БПФ половин.
+
+\begin{lstlisting}[caption=Функция \texttt{fft\_norec}]
+def fft_norec(ys):
+    N = len(ys)
+    He = np.fft.fft(ys[::2])
+    Ho = np.fft.fft(ys[1::2])
+    
+    ns = np.arange(N)
+    W = np.exp(-1j * PI2 * ns / N)
+    
+    return np.tile(He, 2) + W * np.tile(Ho, 2)
+\end{lstlisting}
+
+Прверяем результат.
+
+\begin{lstlisting}[caption=Сравнение реализаций]
+hs3 = fft_norec(ys)
+sum(abs(hs - hs3))
+\end{lstlisting}
+
+И получим ошибку равную \texttt{1.1102230246251565e-16}
+
+Теперь заменим библиотечную функцию \texttt{np.fft.fft} на рекурсивными вызовы и добавим базовый случай:
+
+\begin{lstlisting}[caption=Функция \texttt{fft}]
+def fft(ys):
+    N = len(ys)
+    if N == 1:
+        return ys
+    
+    He = fft(ys[::2])
+    Ho = fft(ys[1::2])
+    
+    ns = np.arange(N)
+    W = np.exp(-1j * PI2 * ns / N)
+    
+    return np.tile(He, 2) + W * np.tile(Ho, 2)
+\end{lstlisting}
+
+Результаты снова совпадают:
+
+\begin{lstlisting}[caption=Сравнение реализаций]
+hs4 = fft(ys)
+sum(abs(hs - hs4))
+\end{lstlisting}
+
+Разница между результатами \texttt{3.1401849173675503e-16}.
+Эта реализация БПФ требует времени и пространства, пропорционального $nlogn$ и это тратит время на создание и копирование массивов. Его можно улучшить, чтобы он работал «на месте», но в этом случае он не требует дополнительного места и тратит меньше времени на накладные расходы.
+
+\chapter{Выводы}
+
+Во время выполнения лабораторной работы получены навыки работы с комплексными экспонентами, а также с дискретным преобразованием Фурье.
+
+\end{document}
