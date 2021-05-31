@@ -1,0 +1,371 @@
+\documentclass[a4paper,12pt]{report}
+
+\usepackage{cmap}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{csquotes}
+\usepackage{mathtools}
+\usepackage{hyphenat}
+\usepackage{amsfonts}
+\usepackage{upgreek}
+
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\usepackage{graphicx}
+\graphicspath{ {./img/} }
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{
+    language=Python,                 
+    basicstyle=\small\sffamily, 
+    numbers=left,               
+    numberstyle=\tiny,          
+    stepnumber=1,                 
+    numbersep=5pt,                
+    aboveskip=3mm,
+    belowskip=3mm,
+    showstringspaces=false,
+    columns=flexible,
+    captionpos=b, 
+    basicstyle={\small\ttfamily},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    keywordstyle=\color{blue},
+    commentstyle=\color{mauve},
+    stringstyle=\color{dkgreen},
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=3
+}
+
+\title{Лабораторная работа №10\\Линейные стационарные системы}
+\author{Крынский Павел}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\listoffigures
+\lstlistoflistings
+
+\maketitle
+
+\chapter{Упражнение 10.1}
+
+Усечём сигналы до $2^{16}$ значений, а затем обнудим их до $2^{17}$.
+
+Я взял запись выстрела и сделал над ним изменения.
+
+\begin{lstlisting}[caption=Усечение сигнала]
+resp = thinkdsp.read_wave('180960__kleeb__gunshot.wav')
+
+resp = resp.segment(start=0.12)
+resp.shift(-0.12)
+
+resp.truncate(2**16)
+resp.zero_pad(2**17)
+
+resp.normalize()
+resp.plot()
+\end{lstlisting}
+
+Получил следующее изображение:
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{1.png}
+        \caption{Визуализация сигнала}
+        \label{1}
+\end{figure}
+
+Вычисляю спектр:
+
+\begin{lstlisting}[caption=Спектр сигнала]
+tr = resp.make_spectrum()
+tr.plot()
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{2.png}
+        \caption{Спектр сигнала}
+        \label{2}
+\end{figure}
+
+Создаю другой сигнал:
+
+\begin{lstlisting}[caption=Усечение сигнала]
+viol = thinkdsp.read_wave('92002__jcveliz__violin-origional.wav')
+
+viol = viol.segment(start=0.11)
+viol.shift(-0.11)
+
+viol.truncate(2**16)
+viol.zero_pad(2**17)
+
+viol.normalize()
+viol.plot()
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{3.png}
+        \caption{Визуализация сигнала}
+        \label{3}
+\end{figure}
+
+Составим спектр:
+
+\begin{lstlisting}[caption=Спектр сигнала]
+spectr = viol.make_spectrum()
+\end{lstlisting}
+
+Теперь умножим ДПФ сигнала на передаточную функцию и преобразуем обратно в волну:
+
+\begin{lstlisting}[caption=Совмещение сигнала]
+out = (spectr * tr).make_wave()
+out.normalize()
+out.plot()
+out.make_audio()
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{4.png}
+        \caption{Визуализация сигнала}
+        \label{4}
+\end{figure}
+
+Лишнюю ноту в начале не слышно. Избавимся от нулевого отступа:
+
+\begin{lstlisting}[caption=Избавление от нулевого отступа]
+resp.truncate(2**16)
+resp.plot()
+
+viol.truncate(2**16)
+viol.plot()
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{5.png}
+        \caption{Визуализация сигнала}
+        \label{5}
+\end{figure}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{6.png}
+        \caption{Визуализация сигнала}
+        \label{6}
+\end{figure}
+
+Теперь мы можем сравнить с \texttt{np.convolve}:
+
+\begin{lstlisting}[caption=Объединение сигналов]
+out2 = viol.convolve(resp)
+out2.plot()
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{7.png}
+        \caption{Визуализация сигнала}
+        \label{7}
+\end{figure}
+
+Результаты похожи. Звук такой же, но длина не та.
+
+\begin{lstlisting}[caption=Сравнение длин сигналов]
+len(out), len(out2)
+\end{lstlisting}
+
+На выходе получились значения \texttt{(131072, 131071)}.
+
+\texttt{scipy.signal.fftconvolve} делает то же самое, но, как следует из названия, он использует ДПФ, поэтому он значительно быстрее:
+
+\begin{lstlisting}[caption=Изменение сигнала]
+import scipy.signal
+ys = scipy.signal.fftconvolve(viol.ys, resp.ys)
+out3 = thinkdsp.Wave(ys, framerate=viol.framerate)
+\end{lstlisting}
+
+\begin{lstlisting}[caption=Визуализация сигнала]
+out3.plot()
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{8.png}
+        \caption{Визуализация сигнала}
+        \label{8}
+\end{figure}
+
+Результат тот же. В пределах ошибки с плавающей запятой результаты такие же:
+
+\begin{lstlisting}[caption=Сравнение результатов]
+out2.max_diff(out3)
+\end{lstlisting}
+
+Ошибка равна \texttt{2.842170943040401e-14}.
+
+\chapter{Упражнение 10.2}
+
+Для начала я взял запись, которая будет использована в качестве испульсной характеристики.
+
+\begin{lstlisting}[caption=Загрузка звука]
+resp = thinkdsp.read_wave('stalbans_a_mono.wav')
+
+resp = resp.segment(duration=5)
+resp.shift(-0)
+
+resp.normalize()
+resp.plot()
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{9.png}
+        \caption{Визуализация звука}
+        \label{9}
+\end{figure}
+
+
+\begin{lstlisting}[caption=Спектр звука]
+tr = resp.make_spectrum()
+tr.plot()
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{10.png}
+        \caption{Спектр звука}
+        \label{10}
+\end{figure}
+
+Рассмотрим передаточную функцию:
+
+\begin{lstlisting}[caption=Визуализация звука]
+tr.plot()
+thinkdsp.decorate(xscale='log', yscale='log')
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{11.png}
+        \caption{Визуализация звука}
+        \label{11}
+\end{figure}
+
+Беру вторую запись с такой же частатой дескритизации:
+
+\begin{lstlisting}[caption=Загрузка звука]
+wave = thinkdsp.read_wave('38849.wav')
+
+wave = wave.segment(start=0.0)
+wave.shift(-0.0)
+
+wave.truncate(len(resp))
+wave.normalize()
+wave.plot()
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{12.png}
+        \caption{Визуализация звука}
+        \label{12}
+\end{figure}
+
+Смотрим частоту дискретизации.
+
+\begin{lstlisting}[caption=Частота дискретизации 1]
+from pydub import AudioSegment
+song = AudioSegment.from_mp3("stalbans_a_mono.wav")
+song.frame_rate
+\end{lstlisting}
+
+\begin{lstlisting}[caption=Частота дискретизации 2]
+song2 = AudioSegment.from_mp3("38849.wav")
+song2.frame_rate
+\end{lstlisting}
+
+Оба звука имеют частоту дискретизации 96000.
+
+Теперь мы вычисляем ДПФ.
+
+\begin{lstlisting}[caption=Спектр звука]
+spectr = wave.make_spectrum()
+\end{lstlisting}
+
+Обрежем запись до той же длины, что и импульсная характеристика:
+
+\begin{lstlisting}[caption=Длина записей]
+len(spect.hs), len(tr.hs)
+\end{lstlisting}
+
+Длины совпадают и равны \texttt{(240001, 240001)}.
+
+\begin{lstlisting}[caption=Длина первой записи]
+spectr.fs
+\end{lstlisting}
+
+\begin{lstlisting}[caption=Длина второй записи]
+tr.fs
+\end{lstlisting}
+
+Массивы значений совпадают и равны \texttt{array([    0. ,     0.2,     0.4, ..., 47999.6, 47999.8, 48000. ])}.
+
+Мы можем умножить в частотной области и преобразовать обратно во временную область.
+
+\begin{lstlisting}[caption=Перемножение]
+out = (spectr * tr).make_wave()
+out.normalize()
+\end{lstlisting}
+
+Рассмотрим сравнение оригинальной и преобразованной записи:
+
+\begin{lstlisting}[caption=Визуализация оригинального звука]
+wave.plot()
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{13.png}
+        \caption{Визуализация оригинального звука}
+        \label{13}
+\end{figure}
+
+\begin{lstlisting}[caption=Визуализация преображённого звука]
+out.plot()
+\end{lstlisting}
+
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{14.png}
+        \caption{Визуализация преображённого звука}
+        \label{14}
+\end{figure}
+
+Теперь, когда мы распознаем эту операцию как свёртку, мы можем вычислить ее с помощью метода \texttt{convolve}:
+
+\begin{lstlisting}[caption=Моделирование при помощи \texttt{convolve}]
+convolved2 = wave.convolve(resp)
+convolved2.normalize()
+convolved2.make_audio()
+\end{lstlisting}
+
+\chapter{Выводы}
+
+Во время выполнения лабораторной работы получены навыки работы с теорией сигналов и систем, а также применения теоремы свёртки, характеризуя линейные, инвариантные во времени системы.
+
+\end{document}
